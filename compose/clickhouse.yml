@@ -1,0 +1,54 @@
+configs:
+  # ClickHouse catalog configuration for Trino
+  clickhouse.properties:
+    content: |
+      connector.name=clickhouse
+      connection-url=jdbc:clickhouse://clickhouse:8123/${CLICKHOUSE_DB:-default}
+      connection-user=${CLICKHOUSE_USER:-etl_user}
+      connection-password=${CLICKHOUSE_PASSWORD:-secret}
+      case-insensitive-name-matching=true
+      
+      # Metadata caching (reduces repeated schema queries)
+      metadata.cache-ttl=10m
+      metadata.cache-missing=true
+
+services:
+  clickhouse:
+    image: ${CLICKHOUSE_IMAGE:-clickhouse/clickhouse-server:24.3-alpine}
+    container_name: clickhouse
+    ports:
+      - "8123:8123"  # HTTP interface
+      # - "9000:9000"  # Native protocol # Disabled for security
+    networks:
+      iceberg_network:
+    environment:
+      # CLICKHOUSE_DB: default
+      # CLICKHOUSE_USER: default
+      # CLICKHOUSE_PASSWORD: secret
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB:-default}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-etl_user}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-secret}
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+    # configs:
+    #   - source: clickhouse-init.sql
+    #     target: /docker-entrypoint-initdb.d/init.sql
+    #     mode: 0444
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+    # healthcheck:
+      # # Try to select from system.tables every 30 seconds, timeout after 10 seconds, retry up to 5 times
+      # test: ["CMD", "curl", "-f", "http://localhost:8123/?query=SELECT+1"]
+      # interval: 30s
+      # timeout: 10s
+      # retries: 5
+      # # Try to connect as etl_user every 30 seconds, timeout after 10 seconds, retry up to 5 times
+      # test: ["CMD-SHELL", "echo 'SELECT 1' | curl 'http://localhost:8123/' --data-binary @- --user etl_user:secret"]
+      # interval: 30s
+      # timeout: 10s
+      # retries: 5
+
+volumes:
+  clickhouse_data:
+
+networks:
+  iceberg_network:

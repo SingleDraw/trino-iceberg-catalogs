@@ -1,0 +1,6 @@
+minio_data/
+trino/etc/password.db
+_*/
+_*.md
+certs/
+.env

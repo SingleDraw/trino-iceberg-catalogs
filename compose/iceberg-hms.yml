@@ -1,0 +1,145 @@
+configs:
+  iceberg.properties:
+    content: |
+      connector.name=iceberg
+      iceberg.catalog.type=hive_metastore
+      hive.metastore.uri=thrift://hive-metastore:9083
+      iceberg.hive-catalog-name=iceberg
+
+      # S3/MinIO Configuration
+      fs.native-s3.enabled=true
+      s3.endpoint=http://minio:9000
+      s3.path-style-access=true
+      s3.aws-access-key=${AWS_ACCESS_KEY_ID}
+      s3.aws-secret-key=${AWS_SECRET_ACCESS_KEY}
+      s3.region=${AWS_REGION}
+
+  core-site.xml:
+    content: |
+      <?xml version="1.0"?>
+      <?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+      <configuration>
+        <property>
+          <name>fs.s3a.endpoint</name>
+          <value>http://minio:9000</value>
+        </property>
+        <property>
+          <name>fs.s3a.access.key</name>
+          <value>${AWS_ACCESS_KEY_ID}</value>
+        </property>
+        <property>
+          <name>fs.s3a.secret.key</name>
+          <value>${AWS_SECRET_ACCESS_KEY}</value>
+        </property>
+        <property>
+          <name>fs.s3a.path.style.access</name>
+          <value>true</value>
+        </property>
+        <property>
+          <name>fs.s3a.connection.ssl.enabled</name>
+          <value>false</value>
+        </property>
+        <property>
+          <name>fs.s3a.impl</name>
+          <value>org.apache.hadoop.fs.s3a.S3AFileSystem</value>
+        </property>
+        <property>
+          <name>fs.defaultFS</name>
+          <value>s3a://$S3_BUCKET_NAME</value>
+        </property>
+      </configuration>
+
+  hive-site.xml:
+    content: |
+      <?xml version="1.0"?>
+      <?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+      <configuration>
+        <property>
+          <name>metastore.warehouse.dir</name>
+          <value>s3a://${S3_BUCKET_NAME}/managed/</value>
+        </property>
+        <property>
+          <name>metastore.warehouse.external.dir</name>
+          <value>s3a://${S3_BUCKET_NAME}/external/</value>
+        </property>
+        <property>
+          <name>metastore.task.threads.always</name>
+          <value>org.apache.hadoop.hive.metastore.events.EventCleanerTask</value>
+        </property>
+        <property>
+          <name>metastore.expression.proxy</name>
+          <value>org.apache.hadoop.hive.metastore.DefaultPartitionExpressionProxy</value>
+        </property>
+        <property>
+          <name>javax.jdo.option.ConnectionDriverName</name>
+          <value>org.postgresql.Driver</value>
+        </property>
+        <property>
+          <name>javax.jdo.option.ConnectionURL</name>
+          <value>jdbc:postgresql://postgres:5432/metastore</value>
+        </property>
+        <property>
+          <name>javax.jdo.option.ConnectionUserName</name>
+          <value>${POSTGRES_USER:-trino}</value>
+        </property>
+        <property>
+          <name>javax.jdo.option.ConnectionPassword</name>
+          <value>${POSTGRES_PASSWORD:-trino}</value>
+        </property>
+        <property>
+          <name>hive.metastore.schema.verification</name>
+          <value>false</value>
+        </property>
+        <property>
+          <name>datanucleus.schema.autoCreateAll</name>
+          <value>true</value>
+        </property>
+      </configuration>
+
+services:
+  hive-metastore:
+    image: ${HIVE_METASTORE_IMAGE:-apache/hive:standalone-metastore-4.1.0}
+    container_name: hive-metastore
+    environment:
+      # Hadoop classpath for jars (built-in metastore image)
+      HADOOP_CLASSPATH: "/opt/hadoop/share/hadoop/tools/lib/*"
+      SERVICE_NAME: metastore
+      DB_DRIVER: postgres
+      SERVICE_OPTS: -Xmx1G -Djavax.jdo.option.ConnectionDriverName=org.postgresql.Driver -Djavax.jdo.option.ConnectionURL=jdbc:postgresql://postgres:5432/metastore -Djavax.jdo.option.ConnectionUserName=${POSTGRES_USER:-trino} -Djavax.jdo.option.ConnectionPassword=${POSTGRES_PASSWORD:-trino}
+      HIVE_LOGLEVEL: WARN
+      # Hive Metastore DB configuration
+      HIVE_METASTORE_DB_HOST: postgres
+      HIVE_METASTORE_DB_NAME: metastore
+      HIVE_METASTORE_DB_USER: ${POSTGRES_USER:-trino}
+      HIVE_METASTORE_DB_PASSWORD: ${POSTGRES_PASSWORD:-trino}
+      # S3 configuration
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-minioadmin}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-miniopassword}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+    ports:
+      - "9083:9083"
+    networks:
+      iceberg_network:
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    configs:
+      - source: hive-site.xml
+        target: /opt/hive/conf/hive-site.xml
+      - source: core-site.xml
+        target: /opt/hadoop/etc/hadoop/core-site.xml
+    volumes:
+      - ${PWD}/hms-jars/postgresql-42.7.3.jar:/opt/hive/lib/postgresql-42.7.3.jar:ro
+
+  postgres:
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-trino}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-trino}
+      POSTGRES_DB: metastore
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-trino} -d metastore"]
+      interval: 5s
+      timeout: 5s
+      retries: 5

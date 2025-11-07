@@ -1,0 +1,58 @@
+configs:
+  iceberg.properties:
+    content: |
+      # Iceberg connector configuration
+  mariadb.properties:
+    content: |
+      connector.name=mysql
+      connection-url=jdbc:mysql://mariadb-host:3306
+      connection-user=etl_user
+      connection-password=secret
+  clickhouse.properties:
+    content: |
+      # ClickHouse connector configuration
+
+services:
+  postgres:
+    image: ${POSTGRES_IMAGE:-postgres:18.0-bookworm}
+    container_name: postgres
+    networks:
+      iceberg_network:
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/18/main/
+
+  trino:
+    image: ${TRINO_IMAGE:-trinodb/trino:478}
+    container_name: trino
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_started
+      clickhouse:
+        condition: service_started
+    ports:
+      - "8080:8080"
+    networks:
+      iceberg_network:
+    configs:
+      - source: iceberg.properties
+        target: /etc/trino/catalog/iceberg.properties
+        mode: 0444
+      - source: mariadb.properties
+        target: /etc/trino/catalog/mariadb.properties
+        mode: 0444
+      - source: clickhouse.properties
+        target: /etc/trino/catalog/clickhouse.properties
+        mode: 0444
+    # # compose resource limits
+    # cpus: 0.5
+    # mem_limit: 500M
+
+volumes:
+  postgres_data:
+
+networks:
+  iceberg_network:

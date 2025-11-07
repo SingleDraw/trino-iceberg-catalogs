@@ -1,0 +1,56 @@
+configs:
+  iceberg.properties:
+    content: |
+      connector.name=iceberg
+      iceberg.catalog.type=jdbc
+      iceberg.jdbc-catalog.driver-class=org.postgresql.Driver
+      iceberg.jdbc-catalog.connection-url=jdbc:postgresql://postgres:5432/iceberg_catalog
+      iceberg.jdbc-catalog.connection-user=${POSTGRES_USER:-trino}
+      iceberg.jdbc-catalog.connection-password=${POSTGRES_PASSWORD:-trino}
+      iceberg.jdbc-catalog.catalog-name=iceberg
+      iceberg.jdbc-catalog.default-warehouse-dir=s3://${S3_BUCKET_NAME}/
+      
+      # S3 / MinIO Configuration for Iceberg connector
+      s3.path-style-access=true
+      fs.native-s3.enabled=true
+      s3.endpoint=http://minio:9000
+      s3.path-style-access=true
+      s3.aws-access-key=${AWS_ACCESS_KEY_ID:-minioadmin}
+      s3.aws-secret-key=${AWS_SECRET_ACCESS_KEY:-miniopassword}
+      s3.region=${AWS_REGION:-us-east-1}
+
+  init-iceberg-schema.sql:
+    content: |
+      CREATE TABLE IF NOT EXISTS iceberg_tables (
+        catalog_name VARCHAR(255) NOT NULL,
+        table_namespace VARCHAR(255) NOT NULL,
+        table_name VARCHAR(255) NOT NULL,
+        metadata_location VARCHAR(1000),
+        previous_metadata_location VARCHAR(1000),
+        iceberg_type VARCHAR(5),
+        PRIMARY KEY (catalog_name, table_namespace, table_name)
+      );
+      
+      CREATE TABLE IF NOT EXISTS iceberg_namespace_properties (
+        catalog_name VARCHAR(255) NOT NULL,
+        namespace VARCHAR(255) NOT NULL,
+        property_key VARCHAR(255),
+        property_value VARCHAR(1000),
+        PRIMARY KEY (catalog_name, namespace, property_key)
+      );
+
+services:
+  postgres:
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-trino}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-trino}
+      POSTGRES_DB: iceberg_catalog
+    configs:
+      - source: init-iceberg-schema.sql
+        target: /docker-entrypoint-initdb.d/init-iceberg-schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-trino} -d iceberg_catalog"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
