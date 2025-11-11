@@ -55,6 +55,10 @@ init-env:
 	@cp .env.example .env
 	@echo "Initialized .env file from .env.example"
 
+pull-images:
+	@echo "===> Pulling All Required Docker Images <==="
+	@bash scripts/pull-images.sh
+
 create-bucket:
 	@echo "===> Create Minio bucket <==="
 	@docker compose -p $(PROJECT_NAME) exec minio mc alias set local http://minio:9000 minioadmin miniopassword
