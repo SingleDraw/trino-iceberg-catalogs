@@ -5,21 +5,25 @@
 - Rest
 
 # Usage:
-> use tag for selected setup: [jdbc|rest|hms]
-- make run-<tag>
-- make test-<tag>
-- make down-<tag>
+> use tag for selected setup: `[ jdbc | rest | hms ]`
+```bash
+# Init .env
+make init-env
+
+# Runs selected setup
+make run-`tag`
+# Run various queries
+make test-`tag`
+# tear down setup with volumes
+make down-`tag`
+
+#Optional: generate full compose yaml for given setup:
+make gen-com-`tag`
+```
 
 # Setups include:
 - Minio S3 storage
 - Clickhouse
-
-# Todo
-- add MariaDB with tests
-- Add RBAC users in Trino, Minio, Clickhouse etc.
-- Cover with Certs (mTLS, TLS)
-- Add client in Trino tests
-- Add joins in test queries
 
 # Known issues:
 When using `clickhouse/clickhouse-server:25.10-alpine`, or newer trino fails to connect to clickhouse:
