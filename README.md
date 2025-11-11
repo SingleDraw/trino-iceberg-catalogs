@@ -1,34 +1,102 @@
+# Trino Iceberg Catalogs
 
-# Complete setups for Trino with Iceberg Catalogs:
-- JDBC
-- Hive Metastore
-- Rest
+Modular Trino + Iceberg environments powered by Postgres and MinIO, supporting **Hive Metastore**, **REST**, and **JDBC** catalog variants with ClickHouse integration. Provides ready-to-use setups for testing and development with Trino against Iceberg and ClickHouse.
 
-# Usage:
-> use tag for selected setup: `[ jdbc | rest | hms ]`
+---
+
+## Features
+
+- Multiple Iceberg catalog configurations:
+  - **JDBC catalog** (Postgres backend)
+  - **Hive Metastore**
+  - **REST catalog**
+- Trino query engine
+- MinIO S3 storage
+- ClickHouse analytics/serving layer
+- Predefined Docker images for reproducible environments
+
+---
+
+## Prerequisites
+
+- Docker & Docker Compose installed
+- `make` command available
+
+---
+
+## Usage
+
+1. Initialize environment:
 ```bash
-# Init .env
 make init-env
+````
 
-# Runs selected setup
-make run-`tag`
-# Run various queries
-make test-`tag`
-# tear down setup with volumes
-make down-`tag`
+2. Pull all required Docker images:
 
-#Optional: generate full compose yaml for given setup:
-make gen-com-`tag`
+```bash
+make pull-images
 ```
 
-# Setups include:
-- Minio S3 storage
-- Clickhouse
+3. Run a selected setup (`jdbc`, `rest`, or `hms`):
 
-# Known issues:
-When using `clickhouse/clickhouse-server:25.10-alpine`, or newer trino fails to connect to clickhouse:
-```log
-Query <id> failed: Error listing schemas for catalog clickhouse: java.io.IOException: Magic is not correct - expect [-126] but got [123]
+```bash
+make run-<tag>
 ```
-The reason is that Clickhouse 25 introduced breaking protocol changes that Trino's JDBC driver hasn't caught up with yet.
-Works with `clickhouse/clickhouse-server:24.8-alpine` for now.
+
+4. Run test queries against the catalog:
+
+```bash
+make test-<tag>
+```
+
+5. Tear down the setup and remove volumes:
+
+```bash
+make down-<tag>
+```
+
+6. Generate a complete merged `docker-compose.yml` for the selected setup:
+
+```bash
+make gen-com-<tag>
+```
+
+---
+
+## Notes on Tags
+
+* `[jdbc | rest | hms]` — choose the catalog backend:
+
+  * `jdbc` → Postgres-backed Iceberg catalog
+  * `rest` → Iceberg REST catalog
+  * `hms` → Hive Metastore catalog
+
+---
+
+## Known Issues
+
+* **ClickHouse compatibility**:
+  Using `clickhouse/clickhouse-server:25.10-alpine` or newer may fail with Trino:
+
+  ```log
+  Query <id> failed: Error listing schemas for catalog clickhouse: java.io.IOException: Magic is not correct - expect [-126] but got [123]
+  ```
+
+  Works with `clickhouse/clickhouse-server:24.8-alpine`.
+
+---
+
+## Contributing
+
+Feel free to open issues or pull requests for:
+
+* Adding new catalog variants
+* Updating image versions
+* Improving test queries
+
+---
+
+## License
+
+MIT License
+
