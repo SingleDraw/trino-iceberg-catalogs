@@ -18,8 +18,8 @@ services:
     container_name: postgres
     networks:
       iceberg_network:
-    ports:
-      - "5432:5432"
+    # ports:
+    #   - "5432:5432" # Uncomment if external access is needed
     volumes:
       - postgres_data:/var/lib/postgresql/18/main/
 

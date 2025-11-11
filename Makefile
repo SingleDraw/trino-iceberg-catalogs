@@ -13,9 +13,7 @@ define generate-compose-string
 	-f $(YAML_DIR)/minio.yml
 endef
 
-define generate-compose-file
-	docker compose $(ENV_FLAGS) $(1) config > merged.yml
-endef
+
 
 define run-docker-compose
 	docker compose $(ENV_FLAGS) -p $(PROJECT_NAME) $(1) up -d
@@ -25,10 +23,18 @@ define down-docker-compose
 	docker compose $(ENV_FLAGS) -p $(PROJECT_NAME) $(1) down -v
 endef
 
+
+
 JDBC_COMPOSE_STRING := $(call generate-compose-string,jdbc)
 REST_COMPOSE_STRING := $(call generate-compose-string,rest)
 HMS_COMPOSE_STRING := $(call generate-compose-string,hms)
+
 # ----------------------------------------------------
+# Optional helpers to generate merged docker-compose files
+# ----------------------------------------------------
+define generate-compose-file
+	docker compose $(ENV_FLAGS) $(1) config > merged.yml
+endef
 gen-com-rest:
 	@$(call generate-compose-file,$(REST_COMPOSE_STRING))
 	@echo "Generated merged Docker Compose file for REST Catalog setup..."
